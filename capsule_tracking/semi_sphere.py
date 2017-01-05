@@ -204,7 +204,7 @@ def sortPhotosPCO(path, fileType = '.png', prefixleng=10):
     return filenameList, numberOfJPG
             
             
-def coverSideSemiSphere(img, offset, ParameterClass, color=(255,255,255)):
+def coverSideSemiSphere(img, offset, ParameterClass, color=(255,255,255), forPub=False):
     '''Take image and delete areas not of intereste'''
 
     top=ParameterClass.ChannelTop
@@ -243,20 +243,41 @@ def coverSideSemiSphere(img, offset, ParameterClass, color=(255,255,255)):
     cv2.rectangle(img, (xImg - crop, 0), (xImg, yImg), color, thickness=-1) 
     
     #cover traingle bottom
-    shapeR = np.array([[end+offset-5,bottom+offset], 
-                       [end+offset-5, yImg], 
-                       [end+offset-5 - (yImg-bottom-offset), yImg]], np.int32)
+    shapeR = np.array([[end+offset,bottom+offset], 
+                       [end+offset, yImg], 
+                       [end+offset - (yImg-bottom-offset), yImg]], np.int32)
     cv2.fillPoly(img, [shapeR], color)   
     
         
     #cover traingle top
-    shapeR = np.array([[end+offset-5,top+offset], 
-                       [end+offset-5, 0], 
-                       [end+offset-5 - (top+offset), 0]], np.int32)
+    shapeR = np.array([[end+offset,top+offset], 
+                       [end+offset, 0], 
+                       [end+offset - (top+offset), 0]], np.int32)
     cv2.fillPoly(img, [shapeR], color) 
     
     #time stampe
+    #ToDo: doesn' cover it properly, fix
     cv2.rectangle(img, (50, 12), (300, 6), color, thickness=-1)  
+    
+    #cover half-cylinder
+    if forPub:        
+        centreline = (bottom+top)/2.0
+        radius = (bottom-top)/4.0 - 2.0
+        shapeCylinder=[]
+        shapeCylinder.append([end+offset, centreline + radius])
+        shapeCylinder.append([end+offset, centreline - radius])
+#        shapeCylinder.append([end+offset+ radius, centreline])
+        
+        pts=50
+        for gg in range(pts):
+            theta = gg * (np.pi/(pts-1.0))
+            xp = radius * np.sin(theta)
+            yp = radius * np.cos(theta)
+            shapeCylinder.append([end+offset+ xp, centreline+yp])    
+
+        shapeCylinder = np.array(shapeCylinder, np.int32)
+        cv2.fillPoly(img, [shapeCylinder], color)
+        
     return img
 
 

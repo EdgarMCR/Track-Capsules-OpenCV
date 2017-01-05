@@ -160,3 +160,118 @@ def plotCentoridOnImage(path1, path2, geo1, geo2, savepath, rotate=-0.3):
         img = cv2.resize(img, dsize=(0,0), fx=0.5, fy=0.5) 
         cv2.imwrite(savepath+'Image_'+str(c)+'.jpg', img)
         c=c+1
+        
+def coverImages(ParameterClass, savefolder, color=(255,255,255)):
+    """Goes though all the pictures in directory, thresholds them and finds 
+    several measurments for the resulting object, which should be a capsule if 
+    the threshold has been chossen correctly
+    """
+    
+    if not os.path.exists(savefolder): os.makedirs(savefolder)
+
+    print('Printing Arguments')
+    print(' path :  ' + str( ParameterClass.path))
+    print('d0 :  ' + str(ParameterClass.d0))
+    print('pPmm :  ' + str(ParameterClass.pPmm))
+    print('background :  ' + str(ParameterClass.backgroundImage))
+    print('rotate :  ' + str(ParameterClass.rotation))
+    print('printDebugInfo :  ' + str(ParameterClass.printDebugInfo))
+
+    #for ease of writing
+    path = ParameterClass.path; d0=ParameterClass.d0; plot = ParameterClass.plot
+    printDebugInfo = ParameterClass.printDebugInfo; pPmm = ParameterClass.pPmm
+    
+    background= True #bool that states whether we are using background substraction
+    
+    fileID=gen.find_batchName(path);
+
+    #close all graphs
+    plt.close("all")
+    
+    #'forShow is a boolean variable that governs whether plot is displayed 
+    #during program run. Used for debugging only
+    forShow=False    
+    
+    #get sorted list of filenames
+    fileList, leng =ParameterClass.listingImageFunc(path) #, fileType='.jpg')
+    print('leng = %d' %leng)
+    
+    #counter of images
+    counterL=-1
+    
+    back = cv2.imread(ParameterClass.backgroundImage,cv2.IMREAD_COLOR)
+
+    #Iterating over all pictures
+    for i in range(leng):
+        plt.close('all')
+        counterL=counterL+1
+
+        if printDebugInfo:
+            print('\n\n%d th image (number %d, filename = %s )' %(i, fileList[i].number, fileList[i].fn))
+        elif i%10 == 0: #print info every 10th picture
+            print("Current frame " + str(i) + "\t and counter is on " +  str(counterL))# + " and memory used is: ")
+        #read image
+        readPath=path+fileList[i].fn
+#        print("readfind_max_extendPath: %s" %readPath)
+        img =cv2.imread(readPath,cv2.IMREAD_COLOR)
+        t1 = img.copy()
+        
+        if back.shape != img.shape:
+            import warnings
+            string = "\n Background image and loaded image do not have the same size. \n" + \
+                    "Background image has shape " + str(back.shape) +' and loaded image  ' + str(img.shape) + \
+                    "\n Loaded image path: %s \n Skipping Image!" %(readPath)
+            warnings.warn(string, RuntimeWarning)
+            continue
+
+            
+        imgC =  cv2.absdiff(back, img)
+        img = (255 - imgC)
+        
+        if ParameterClass.rotation != 0:
+            img=gen.rotateImage(img, ParameterClass.rotation)
+            t1=gen.rotateImage(t1, ParameterClass.rotation)
+        
+        if ParameterClass.flip:
+            img=cv2.flip(img,1)
+            
+        #add a border of black pixels around image in case capsule touches edge 
+        bordersize=0
+        img=cv2.copyMakeBorder(img,bordersize,bordersize,bordersize,bordersize,
+                               cv2.BORDER_CONSTANT,value=color)  
+
+        #Get size of image
+        yImg,xImg, _ = img.shape
+        
+        #Increase Contrast
+        img = ParameterClass.coverImgFunc(img, bordersize, 
+                                          ParameterClass)
+                                          
+#        #======================================================================                                          
+#        #Option 1: not good but maybe with parameter tweak
+#        imghsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
+#        imghsv[:,:,2] = [[max(pixel - 25, 0) if pixel < 190 else min(pixel + 25, 255) for pixel in row] for row in imghsv[:,:,2]]
+#        img = cv2.cvtColor(imghsv, cv2.COLOR_HSV2BGR)
+        
+        #======================================================================                                          
+        #Option 2
+        #-----Converting image to LAB Color model----------------------------------- 
+        lab= cv2.cvtColor(img, cv2.COLOR_BGR2LAB)
+        cv2.imshow("lab",lab)
+        
+        #-----Splitting the LAB image to different channels-------------------------
+        l, a, b = cv2.split(lab)
+        
+        #-----Applying CLAHE to L-channel-------------------------------------------
+        clahe = cv2.createCLAHE(clipLimit=3.0, tileGridSize=(8,8))
+        cl = clahe.apply(l)
+        
+        #-----Merge the CLAHE enhanced L-channel with the a and b channel-----------
+        limg = cv2.merge((cl,a,b))
+        
+        #-----Converting image from LAB Color model to RGB model--------------------
+        img = cv2.cvtColor(limg, cv2.COLOR_LAB2BGR)
+
+        img = ParameterClass.coverImgFunc(img, bordersize, 
+                                          ParameterClass, color=color, forPub=True)
+        cv2.imwrite(os.path.join(savefolder,'%03d.jpg' %counterL),img)

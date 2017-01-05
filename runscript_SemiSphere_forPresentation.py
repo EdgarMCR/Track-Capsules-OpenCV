@@ -18,6 +18,7 @@ sys.path.append('/home/magda/Dropbox/PhD/Python/OpenCV/capsule_tracking') #Aland
 import general as gen
 import analysis as ana
 import semi_sphere as ss
+import visualization as vis
 
 ##=============================================================================
 ## Batch20160205-1 #4
@@ -341,7 +342,7 @@ PSS.printDebugInfo=False
 
 #gen.track_capsules(PSS)
 sf= os.path.join(PSS.path, 'coloured')
-gen.coverImages(PSS, savefolder=sf, color=(0,255,255))
+vis.coverImages(PSS, savefolder=sf, color=(0,0, 255))
 
 
 
